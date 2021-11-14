@@ -103,12 +103,8 @@ class MonitorsController extends \TCG\Voyager\Http\Controllers\VoyagerBaseContro
 	{
 
 		$this->dbdesa = false;
-		// $sidssh = (trim(setting('admin.ssh_sid')));
-		// var_dump($sidssh);
 		$this->monitor 	= Monitor::find($id);
 		if (!$this->monitor) return false;
-		// var_dump($this->monitor);
-		//if ((!$this->monitor->domain_registered || !$this->monitor->ip_address ) && $isajax == false) return false;
 		if ($isajax == false) return false;
 
 		$domain 	= explode("://", $this->monitor->url);
@@ -132,7 +128,7 @@ class MonitorsController extends \TCG\Voyager\Http\Controllers\VoyagerBaseContro
 		if (is_file($desadir)) {
 			include $desadir;
 		} else {
-			// ini kode production, hanya cek domain yang di hosting di server SISD diskominfo, beri komentar kalau mau cek develop mode
+			// ini kode production, hanya cek domain yang di hosting di server OpenSID diskominfo, beri komentar kalau mau cek develop mode
 			$sid_info["error"] = 'Hosting diluar server SID Diskominfo Bogorkab';
 			$this->monitor->sid_info = $sid_info;
 			$this->monitor->save();
@@ -193,8 +189,9 @@ class MonitorsController extends \TCG\Voyager\Http\Controllers\VoyagerBaseContro
 			$this->monitor->save();
 			$this->json['sid_info'] = $sid_info;
 		} catch (\Throwable $th) {
-			throw $th;
-			die($domain);
+			// throw $th;
+			// die($domain);
+			$json['message'] =  $th->getMessage();
 			return $this->json;
 		}
 		return $this->json;
@@ -203,12 +200,8 @@ class MonitorsController extends \TCG\Voyager\Http\Controllers\VoyagerBaseContro
 	{
 
 		$this->dbdesa = false;
-		// $sidssh = (trim(setting('admin.ssh_sid')));
-		// var_dump($sidssh);
 		$this->monitor 	= Monitor::find($id);
 		if (!$this->monitor) return false;
-		// var_dump($this->monitor);
-		//if ((!$this->monitor->domain_registered || !$this->monitor->ip_address ) && $isajax == false) return false;
 		if ($isajax == false) return false;
 
 		$domain 	= explode("://", $this->monitor->url);
@@ -243,7 +236,7 @@ class MonitorsController extends \TCG\Voyager\Http\Controllers\VoyagerBaseContro
 		} else {
 
 			// kalo terdaftar cek A record nya hosting dimana 
-			$ret = trim($this->so->exeCmd("dig @localhost {$domain} A +short"));
+			$ret = trim($this->so->exeCmd("dig {$domain} A +short"));
 
 			$this->monitor->ip_address = $ret;
 			$this->monitor->save();
@@ -272,11 +265,6 @@ class MonitorsController extends \TCG\Voyager\Http\Controllers\VoyagerBaseContro
 	{
 		$dataType = Voyager::model('DataType')->where('slug', '=', "monitors")->first();
 		$this->authorize('browse', app($dataType->model_name));
-
-		// Check permission
-		//$this->authorize('browse', app($dataType->model_name));
-
-		//$this->getinfodesa($request->input('id'), true);
 
 		return json_encode($this->getinfodesa($request->input('id'), true));
 	}
@@ -314,7 +302,7 @@ class MonitorsController extends \TCG\Voyager\Http\Controllers\VoyagerBaseContro
 			}
 		}
 
-		$this->so->exeCmd('cp -f /home/admin/share/SISD/.htaccess ' . $public_html);
+		$this->so->exeCmd('cp -f /home/admin/share/OpenSID/.htaccess ' . $public_html);
 		$json['success'] = true;
 		$json['message'] = 'Berhasil memperbaiki file .htaccess dan permission folder Silahkan  Cek website!';
 		$user = $this->monitor->id_kec ?: $this->_getdomainowner($public_html);
@@ -368,7 +356,7 @@ class MonitorsController extends \TCG\Voyager\Http\Controllers\VoyagerBaseContro
 			}
 		}
 
-		$this->so->exeCmd('cp -f /home/admin/share/SISD/.htaccess ' . $public_html);
+		$this->so->exeCmd('cp -f /home/admin/share/OpenSID/.htaccess ' . $public_html);
 		$json['success'] = true;
 		$json['message'] = 'Berhasil memperbaiki file .htaccess dan permission folder Silahkan  Cek website!';
 		$user = $this->monitor->id_kec ?: $this->_getdomainowner($public_html);
@@ -399,7 +387,7 @@ class MonitorsController extends \TCG\Voyager\Http\Controllers\VoyagerBaseContro
 		$domain 	= str_replace("/", "",  $domain[1]);
 		$json = ['finish' => false, 'next' => '', 'progress' => '50%', 'message' => 'Memulai upgrade'];
 		$status = $request->input('next');
-		$sharefolder = '/home/admin/share/SISD' . DIRECTORY_SEPARATOR;
+		$sharefolder = '/home/admin/share/OpenSID' . DIRECTORY_SEPARATOR;
 		$public_html = '/home/' . $this->monitor->id_kec . '/web/' . $domain . '/public_html/';
 		\MTS\Factories::getActions()->getRemoteUsers()->changeUser($this->so, 'root', 'sisddiskominfo2020');
 		$this->so->exeCmd('chown -R admin:admin ' . $public_html);
@@ -433,9 +421,10 @@ class MonitorsController extends \TCG\Voyager\Http\Controllers\VoyagerBaseContro
 					$rec = $this->dbdesa->get();
 				} catch (\Throwable $th) {
 					$rec = false;
+					
 				} finally {
 					if ($rec === false) {
-						$sql_script = $sharefolder . 'contoh_data_awal_20210401.sql';
+						$sql_script = $sharefolder . 'database.sql';
 
 						try {
 							ini_set('max_execution_time', '500');
@@ -445,7 +434,7 @@ class MonitorsController extends \TCG\Voyager\Http\Controllers\VoyagerBaseContro
 							//code...
 						} catch (\Throwable $th) {
 							//throw $th;
-							$proses = $th;
+							$proses =  $th->getMessage();
 						} finally {
 							if ($proses == 'ok') {
 								$this->dbdesa = DB::connection('webdesa' . $id)->table('setting_aplikasi')
@@ -453,9 +442,7 @@ class MonitorsController extends \TCG\Voyager\Http\Controllers\VoyagerBaseContro
 									->orWhere('kategori', "=", 'readonly');
 								$sid_info['id_kec'] = $this->monitor->id_kec;
 								foreach ($this->dbdesa->get() as $key => $value) {
-									//if ($value->key == 'current_version') $this->monitor->sid_info = $value->value;
 									$sid_info[$value->key] = $value->value;
-									//echo "{$value->key}  --->  {$value->value} <br>";
 								}
 								$sid_info["error"] = false;
 								$this->monitor->sid_info = $sid_info;
@@ -479,9 +466,7 @@ class MonitorsController extends \TCG\Voyager\Http\Controllers\VoyagerBaseContro
 							->orWhere('kategori', "=", 'readonly');
 						$sid_info['id_kec'] = $this->monitor->id_kec;
 						foreach ($this->dbdesa->get() as $key => $value) {
-							//if ($value->key == 'current_version') $this->monitor->sid_info = $value->value;
 							$sid_info[$value->key] = $value->value;
-							//echo "{$value->key}  --->  {$value->value} <br>";
 						}
 						$sid_info["error"] = false;
 						$this->monitor->sid_info = $sid_info;
@@ -503,16 +488,16 @@ class MonitorsController extends \TCG\Voyager\Http\Controllers\VoyagerBaseContro
 
 				break;
 			case 'next':
+				$json['message'] .= 'Menyalin ... ' . $this->so->exeCmd('cp -rf ' . $sharefolder . '* ' . $public_html);
+
 				//copy folder asset dari share ke domain
-				$json['message'] .= 'Copy assets. ' . $this->so->exeCmd('cp -r ' . $sharefolder . 'assets ' . $public_html);
 				//copy folder desa dari share ke domain dan rubah ke nama domain
 				$json['message'] .= '<br>Copy desa folder. ' . $this->so->exeCmd('cp -r ' . $sharefolder . 'desa-contoh ' . $public_html . $domain);
 				//buat folder log
 				$json['message'] .= '<br>Membuat folder log desa folder. ' . $this->so->exeCmd('mkdir  ' . $public_html . 'logs');
-				//copy securimage folder
-				$json['message'] .= '<br>Copy securimage folder. ' . $this->so->exeCmd('cp -r ' . $sharefolder . 'securimage ' . $public_html);
-				//buat shortcut themes
-				$json['message'] .= '<br>Shortcut themes. ' . $this->so->exeCmd('ln -s ' . $sharefolder . 'themes ' . $public_html . 'themes');
+				//buat shortcut desa
+				$json['message'] .= '<br>Shortcut desa. ' . $this->so->exeCmd('ln -s ' . $public_html . $domain .' '. $public_html . 'desa');
+				
 
 				$json['progress'] = '80%';
 				$json['next'] = 'copyingfile';
@@ -520,16 +505,8 @@ class MonitorsController extends \TCG\Voyager\Http\Controllers\VoyagerBaseContro
 				break;
 
 			case 'copyingfile':
-				//copy htaccess
-				$this->so->exeCmd('cp -f ' . $sharefolder . 'robot.txt ' . $public_html);
-				//copy htaccess
-				$json['message'] .= '<br>Copy .htaccess. ' . $this->so->exeCmd('cp -f ' . $sharefolder . '.htaccess ' . $public_html);
-				//copy sertifikat
-				$json['message'] .= '<br>Copy sertifikat. ' . $this->so->exeCmd('cp -f ' . $sharefolder . 'cacert.pem ' . $public_html);
-				//copy index.php
-				$json['message'] .= '<br>Copy securimage folder. ' . $this->so->exeCmd('cp -f ' . $sharefolder . 'index.php ' . $public_html);
-				//copy favicon.ico
-				$json['message'] .= '<br>Copy securimage folder. ' . $this->so->exeCmd('cp -f ' . $sharefolder . 'favicon.ico ' . $public_html);
+				$this->so->exeCmd('rm -rf ' . $public_html . 'desa-contoh ');
+
 
 				$json['progress'] = '90%';
 				$json['next'] = 'fixpermission';
@@ -574,6 +551,7 @@ class MonitorsController extends \TCG\Voyager\Http\Controllers\VoyagerBaseContro
 
 				$randomNum = substr(str_shuffle("ABCDEFGHIJKLMNPQRSTUWXYZ123456789"), 0, 5);
 				$pass = md5($randomNum);
+				//$pass = password_hash($randomNum, PASSWORD_BCRYPT);
 				$username 	= $this->monitor->id_kec . '_' . $this->monitor->id_desa;
 				$this->dbdesa = DB::connection('webdesa' . $id)->table('user')
 					->where('id', '1')
@@ -653,13 +631,12 @@ class MonitorsController extends \TCG\Voyager\Http\Controllers\VoyagerBaseContro
 			'database'  => $db['default']['database'],
 			'username'  => $db['default']['username'],
 			'password'  => $db['default']['password'],
-			// 'database'  => '01_1001',
-			// 'username'  => '01_1001',
-			// 'password'  => "Diskominfo011001",
 		]);
 		// }
 		try {
+			$randomNum = substr(str_shuffle("ABCDEFGHIJKLMNPQRSTUWXYZ123456789"), 0, 5);
 			$pass = md5($password);
+			//$pass = password_hash($randomNum, PASSWORD_BCRYPT);
 			$this->dbdesa = DB::connection('webdesa' . $id);
 			$this->dbdesa->table('user')
 				->where('id', '1')
@@ -670,8 +647,8 @@ class MonitorsController extends \TCG\Voyager\Http\Controllers\VoyagerBaseContro
 				$json['hash'] = $pass;
 			}
 		} catch (\Throwable $th) {
-			//throw $th;
-			$json['message'] =  $th;
+			throw $th;
+			$json['message'] =  $th->getMessage();
 			//return $json;
 		} finally {
 			//var_dump($db);
@@ -701,7 +678,7 @@ class MonitorsController extends \TCG\Voyager\Http\Controllers\VoyagerBaseContro
 		$domain 	= str_replace("/", "",  $domain[1]);
 		$json = ['finish' => false, 'next' => '', 'progress' => '50%', 'message' => 'Memulai upgrade'];
 		$status = $request->input('next');
-		$sharefolder = '/home/admin/share/SISD' . DIRECTORY_SEPARATOR;
+		$sharefolder = '/home/admin/share/OpenSID' . DIRECTORY_SEPARATOR;
 		$public_html = '/home/' . $this->monitor->id_kec . '/web/' . $domain . '/public_html/';
 		\MTS\Factories::getActions()->getRemoteUsers()->changeUser($this->so, 'root', 'sisddiskominfo2020');
 		$this->so->exeCmd('chown -R admin:admin ' . $public_html);
@@ -757,7 +734,7 @@ class MonitorsController extends \TCG\Voyager\Http\Controllers\VoyagerBaseContro
 							//code...
 						} catch (\Throwable $th) {
 							//throw $th;
-							$proses = $th;
+							$proses = $th->getMessage();
 						} finally {
 							if ($proses == 'ok') {
 								$this->dbdesa = DB::connection('webdesa' . $id)->table('setting_aplikasi')
@@ -795,9 +772,6 @@ class MonitorsController extends \TCG\Voyager\Http\Controllers\VoyagerBaseContro
 
 				break;
 			case 'tema':
-				//$json['message'] .= '<br>Backing File....' . 
-				$this->so->exeCmd('zip -r /home/' . $this->monitor->id_kec . '/' . $this->monitor->id_kec . '_' . $this->monitor->id_desa . date('Ymmdd') . '.zip ' . $public_html, false, 30000);
-
 
 				$json['progress'] = '80%';
 				$json['next'] = 'copyingfile';
@@ -806,26 +780,12 @@ class MonitorsController extends \TCG\Voyager\Http\Controllers\VoyagerBaseContro
 
 			case 'copyingfile':
 				// //buat shortcut themes
-				$json['message'] .= '<br>Shortcut themes. ' . $this->so->exeCmd('ln -s ' . $sharefolder . 'themes ' . $public_html . 'themes', false, 500);
-				// //copy htaccess
-				$this->so->exeCmd('cp -f ' . $sharefolder . 'robot.txt ' . $public_html, false, 500);
-				// //copy htaccess
-				$json['message'] .= '<br>Copy .htaccess. ' . $this->so->exeCmd('cp -f ' . $sharefolder . '.htaccess ' . $public_html, false, 500);
-				// //copy sertifikat
-				$json['message'] .= '<br>Copy sertifikat. ' . $this->so->exeCmd('cp -f ' . $sharefolder . 'cacert.pem ' . $public_html, false, 500);
-				// //copy index.php
-				$json['message'] .= '<br>Copy index. ' . $this->so->exeCmd('cp -f ' . $sharefolder . 'index.php ' . $public_html, false, 500);
-				// //copy favicon.ico
-				$json['message'] .= '<br>Copy icon folder. ' . $this->so->exeCmd('cp -f ' . $sharefolder . 'favicon.ico ' . $public_html, false, 500);
-				//copy folder asset dari share ke domain
-				$json['message'] .= 'Copy assets. ' . $this->so->exeCmd('cp -r ' . $sharefolder . 'assets ' . $public_html, false, 10000);
-				//copy folder desa dari share ke domain dan rubah ke nama domain
-				$json['message'] .= '<br>Copy desa folder. ' . $this->so->exeCmd('cp -r ' . $sharefolder . 'desa-contoh/* ' . $public_html . $domain, false, 10000);
-				//buat folder log
-				// $json['message'] .= '<br>Membuat folder log desa folder. ' . $this->so->exeCmd('mkdir  ' . $public_html . 'logs', false, 500);
-				// //copy securimage folder
-				$json['message'] .= '<br>Copy securimage folder. ' . $this->so->exeCmd('cp -r ' . $sharefolder . 'securimage ' . $public_html, false, 3000);
+				$json['message'] .= 'Menyalin ... ' . $this->so->exeCmd('cp -rf ' . $sharefolder . '* ' . $public_html);
 
+				//copy folder desa dari share ke domain dan rubah ke nama domain
+				$json['message'] .= '<br>Copy desa folder. ' . $this->so->exeCmd('cp -r ' . $sharefolder . 'desa-contoh ' . $public_html . $domain);
+				//buat shortcut desa
+				$json['message'] .= '<br>Shortcut desa. ' . $this->so->exeCmd('ln -s ' . $public_html . $domain .' '. $public_html . 'desa');
 				$json['progress'] = '90%';
 				$json['next'] = 'fixpermission';
 				$json['message'] .= 'Memperbarui file .htaccess dan per-izinan berkas serta folder...';
@@ -865,6 +825,7 @@ class MonitorsController extends \TCG\Voyager\Http\Controllers\VoyagerBaseContro
 			case 'finish':
 				$this->so->exeCmd('rm -f  ' . $public_html . 'index.html');
 				$json['message'] .= '<br>Fix Folder Permission. ' . $this->so->exeCmd('chown -R ' . $this->monitor->id_kec . ':' . $this->monitor->id_kec . ' ' . $public_html);
+				$this->so->exeCmd('rm -rf ' .  $public_html . $domain . 'desa-contoh');
 
 				//crawling url untuk proses migrasi secara otomatis melalui skrip opensid
 				set_time_limit(300); // to infinity for example
@@ -1029,22 +990,6 @@ class MonitorsController extends \TCG\Voyager\Http\Controllers\VoyagerBaseContro
 			$orderColumn = [[$index, $sortOrder ?? 'desc']];
 		}
 
-
-
-
-		// if ($request->ajax()) {
-		// 	$data = User::select('*');
-		// 	return Datatables::of($data)
-		// 		->addIndexColumn()
-		// 		->addColumn('action', function ($row) {
-
-		// 			$btn = '<a href="javascript:void(0)" class="edit btn btn-primary btn-sm">View</a>';
-
-		// 			return $btn;
-		// 		})
-		// 		->rawColumns(['action'])
-		// 		->make(true);
-		// }
 
 		$view = 'voyager::bread.browse';
 
